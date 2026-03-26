@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clock</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #0069B7;
+    --navy: #003D6B;
+    --blue-light: #5A9FD4;
+    --gold: #C9A84C;
+    --red: #C0392B;
+    --body: #3A3A3A;
+    --muted: #6B6B6B;
+    --bg: #F5F7FA;
+    --card-bg: #FFFFFF;
+    --card-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    --time-color: #003D6B;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0E1419;
+      --card-bg: #182028;
+      --card-shadow: 0 4px 24px rgba(0,0,0,0.4);
+      --body: #DDEAF8;
+      --muted: #5A9FD4;
+      --time-color: #FFFFFF;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Roboto', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--body);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: clamp(20px, 4vh, 48px) clamp(24px, 6vw, 64px);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(6px, 1.5vh, 14px);
+    width: 94vw;
+    max-width: 680px;
+    border-top: 4px solid var(--red);
+    position: relative;
+  }
+
+  /* ── Brand title removed ── */
+
+  /* ── Time ── */
+  .time-12h {
+    font-size: clamp(40px, 12vw, 108px);
+    font-weight: 900;
+    color: var(--time-color);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  .time-24h {
+    font-size: clamp(18px, 5vw, 48px);
+    font-weight: 300;
+    color: var(--blue);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    text-align: center;
+    margin-top: -2px;
+  }
+
+  /* ── Separator ── */
+  .sep {
+    width: 50%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: clamp(2px, 0.5vh, 6px) 0;
+  }
+
+  /* ── Date ── */
+  .date-line {
+    font-size: clamp(18px, 5vw, 48px);
+    font-weight: 400;
+    color: var(--body);
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .timezone-line {
+    font-size: clamp(10px, 2vw, 16px);
+    font-weight: 400;
+    color: var(--muted);
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  /* ── Weather ── */
+  .weather-block {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 3vw, 28px);
+  }
+
+  .weather-emoji {
+    font-size: clamp(40px, 12vw, 108px);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .weather-temps {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .temp-f {
+    font-size: clamp(40px, 12vw, 108px);
+    font-weight: 900;
+    color: var(--red);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    white-space: nowrap;
+  }
+
+  .temp-c {
+    font-size: clamp(18px, 5vw, 48px);
+    font-weight: 300;
+    color: var(--blue);
+    line-height: 1.1;
+    white-space: nowrap;
+    margin-top: -2px;
+  }
+
+  .weather-desc {
+    font-size: clamp(10px, 2vw, 16px);
+    font-weight: 400;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ── Footer ── */
+  .brand-footer {
+    margin-top: clamp(4px, 1vh, 10px);
+    font-size: clamp(9px, 1.4vw, 12px);
+    color: var(--blue-light);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  /* ── Loading ── */
+  .loading {
+    color: var(--muted);
+    font-size: 16px;
+    text-align: center;
+    padding: 60px 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="app">
+  <div class="loading">Loading...</div>
+</div>
+
+<script>
+(function() {
+
+  /* ── WMO Weather Codes ── */
+  var WMO = {
+    0:  { icon: '\u2600\uFE0F',           desc: 'Clear sky' },
+    1:  { icon: '\uD83C\uDF24\uFE0F',     desc: 'Mainly clear' },
+    2:  { icon: '\u26C5',                  desc: 'Partly cloudy' },
+    3:  { icon: '\u2601\uFE0F',            desc: 'Overcast' },
+    45: { icon: '\uD83C\uDF2B\uFE0F',     desc: 'Fog' },
+    48: { icon: '\uD83C\uDF2B\uFE0F',     desc: 'Rime fog' },
+    51: { icon: '\uD83C\uDF26\uFE0F',     desc: 'Light drizzle' },
+    53: { icon: '\uD83C\uDF26\uFE0F',     desc: 'Drizzle' },
+    55: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Dense drizzle' },
+    56: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Freezing drizzle' },
+    57: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Heavy freezing drizzle' },
+    61: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Light rain' },
+    63: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Rain' },
+    65: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Heavy rain' },
+    66: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Freezing rain' },
+    67: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Heavy freezing rain' },
+    71: { icon: '\uD83C\uDF28\uFE0F',     desc: 'Light snow' },
+    73: { icon: '\uD83C\uDF28\uFE0F',     desc: 'Snow' },
+    75: { icon: '\u2744\uFE0F',            desc: 'Heavy snow' },
+    77: { icon: '\uD83C\uDF28\uFE0F',     desc: 'Snow grains' },
+    80: { icon: '\uD83C\uDF26\uFE0F',     desc: 'Light showers' },
+    81: { icon: '\uD83C\uDF27\uFE0F',     desc: 'Showers' },
+    82: { icon: '\u26C8\uFE0F',            desc: 'Heavy showers' },
+    85: { icon: '\uD83C\uDF28\uFE0F',     desc: 'Snow showers' },
+    86: { icon: '\u2744\uFE0F',            desc: 'Heavy snow showers' },
+    95: { icon: '\u26C8\uFE0F',            desc: 'Thunderstorm' },
+    96: { icon: '\u26C8\uFE0F',            desc: 'Thunderstorm + hail' },
+    99: { icon: '\u26C8\uFE0F',            desc: 'Thunderstorm + heavy hail' }
+  };
+
+  var weatherData = null;
+  var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  /* ── Render ── */
+  function render() {
+    var now = new Date();
+
+    var h12 = now.getHours() % 12 || 12;
+    var min = String(now.getMinutes()).padStart(2, '0');
+    var ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+    var time12 = h12 + ':' + min + ' ' + ampm;
+
+    var h24 = String(now.getHours()).padStart(2, '0');
+    var time24 = h24 + ':' + min;
+
+    var dateStr = now.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    var tzName = tz.replace(/_/g, ' ');
+    var parts = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ');
+    var tzAbbr = parts[parts.length - 1];
+
+    var wIcon = '\u23F3';
+    var wDesc = 'Fetching weather\u2026';
+    var fStr = '\u2013\u2013';
+    var cStr = '\u2013\u2013';
+
+    if (weatherData && weatherData.ok) {
+      var wmo = WMO[weatherData.code] || { icon: '\uD83C\uDF21\uFE0F', desc: 'Unknown' };
+      wIcon = wmo.icon;
+      wDesc = wmo.desc;
+      fStr = Math.round(weatherData.temp_c * 9/5 + 32) + '\u00B0F';
+      cStr = Math.round(weatherData.temp_c) + '\u00B0C';
+    } else if (weatherData && !weatherData.ok) {
+      wIcon = '\uD83C\uDF21\uFE0F';
+      wDesc = 'Weather unavailable';
+    }
+
+    document.getElementById('app').innerHTML =
+      '<div class="time-12h">' + time12 + '</div>' +
+      '<div class="time-24h">' + time24 + '</div>' +
+
+      '<div class="sep"></div>' +
+
+      '<div class="date-line">' + dateStr + '</div>' +
+      '<div class="timezone-line">' + tzAbbr + ' \u00B7 ' + tzName + '</div>' +
+
+      '<div class="sep"></div>' +
+
+      '<div class="weather-block">' +
+        '<div class="weather-emoji">' + wIcon + '</div>' +
+        '<div class="weather-temps">' +
+          '<div class="temp-f">' + fStr + '</div>' +
+          '<div class="temp-c">' + cStr + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="weather-desc">' + wDesc + '</div>' +
+
+      '';
+  }
+
+  /* ── Fetch weather from Open-Meteo ── */
+  function fetchWeather(lat, lon) {
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current_weather=true&temperature_unit=celsius')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.current_weather) {
+          weatherData = {
+            ok: true,
+            temp_c: data.current_weather.temperature,
+            code: data.current_weather.weathercode
+          };
+        } else {
+          weatherData = { ok: false };
+        }
+      })
+      .catch(function() { weatherData = { ok: false }; });
+  }
+
+  /* ── Location: geolocation > ipapi.co > ip-api.com ── */
+  function getLocationAndWeather() {
+    function ipFallback() {
+      fetch('https://ipapi.co/json/')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d && d.latitude && d.longitude) {
+            fetchWeather(d.latitude, d.longitude);
+          } else { ipFallback2(); }
+        })
+        .catch(function() { ipFallback2(); });
+    }
+
+    function ipFallback2() {
+      fetch('https://ip-api.com/json/?fields=lat,lon')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d && d.lat && d.lon) {
+            fetchWeather(d.lat, d.lon);
+          } else { weatherData = { ok: false }; }
+        })
+        .catch(function() { weatherData = { ok: false }; });
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function(pos) { fetchWeather(pos.coords.latitude, pos.coords.longitude); },
+        function() { ipFallback(); },
+        { timeout: 5000 }
+      );
+    } else {
+      ipFallback();
+    }
+  }
+
+  /* ── Init ── */
+  getLocationAndWeather();
+  render();
+  setInterval(render, 1000);
+  setInterval(getLocationAndWeather, 600000);
+
+})();
+</script>
+</body>
+</html>
